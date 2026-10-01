@@ -1,13 +1,23 @@
 package jadx.gui.links;
 
+import java.awt.BorderLayout;
 import java.awt.Frame;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
+import javax.swing.JDialog;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
 
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -89,6 +99,61 @@ public class JadxLinkController {
 				}
 			});
 		});
+	}
+
+	/**
+	 * Ask for a link and open it. Prefilled (and selected) if the clipboard holds a jadx link,
+	 * so Ctrl+G, Enter opens a copied link. Enter in the text field confirms.
+	 */
+	public void openLinkDialog() {
+		UiUtils.uiThreadGuard();
+		JTextField field = new JTextField(60);
+		String clipboard = getClipboardText();
+		if (JadxLink.isJadxLink(clipboard)) {
+			field.setText(clipboard.trim());
+			field.selectAll();
+		}
+		JPanel panel = new JPanel(new BorderLayout(0, 5));
+		panel.add(new JLabel(NLS.str("jadx_link.open_label")), BorderLayout.NORTH);
+		panel.add(field, BorderLayout.CENTER);
+
+		JOptionPane pane = new JOptionPane(panel, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION);
+		JDialog dialog = pane.createDialog(mainWindow, NLS.str("jadx_link.open_title"));
+		field.addActionListener(e -> pane.setValue(JOptionPane.OK_OPTION)); // Enter: confirm, closes dialog
+		dialog.addWindowFocusListener(new WindowAdapter() {
+			@Override
+			public void windowGainedFocus(WindowEvent e) {
+				field.requestFocusInWindow();
+			}
+		});
+		dialog.setVisible(true); // modal
+		dialog.dispose();
+		String link = field.getText().trim();
+		if (Objects.equals(pane.getValue(), JOptionPane.OK_OPTION) && !link.isEmpty()) {
+			handleLink(link);
+		}
+	}
+
+	/**
+	 * Open the jadx link from the clipboard right away, without dialog
+	 */
+	public void openLinkFromClipboard() {
+		UiUtils.uiThreadGuard();
+		String clipboard = getClipboardText();
+		if (JadxLink.isJadxLink(clipboard)) {
+			handleLink(clipboard.trim());
+		} else {
+			UiUtils.errorMessage(mainWindow, NLS.str("jadx_link.title"), NLS.str("jadx_link.no_link_in_clipboard"));
+		}
+	}
+
+	private static @Nullable String getClipboardText() {
+		try {
+			Object data = Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.stringFlavor);
+			return data instanceof String ? (String) data : null;
+		} catch (Exception e) {
+			return null; // empty or non-text clipboard
+		}
 	}
 
 	private void jumpTo(JadxLink link) {

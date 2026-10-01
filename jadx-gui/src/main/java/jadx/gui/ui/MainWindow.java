@@ -1271,6 +1271,8 @@ public class MainWindow extends JFrame implements IMainWindow {
 		nav.add(goToMainActivityAction);
 		nav.add(goToApplicationAction);
 		nav.add(goToAndroidManifestAction);
+		nav.add(new JadxGuiAction(ActionModel.OPEN_JADX_LINK, linkController::openLinkDialog));
+		nav.add(new JadxGuiAction(ActionModel.OPEN_JADX_LINK_FROM_CLIPBOARD, linkController::openLinkFromClipboard));
 		nav.addSeparator();
 		nav.add(backAction);
 		nav.add(forwardAction);
