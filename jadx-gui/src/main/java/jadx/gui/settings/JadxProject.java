@@ -35,6 +35,7 @@ import jadx.core.utils.exceptions.JadxRuntimeException;
 import jadx.core.utils.files.FileUtils;
 import jadx.gui.cache.manager.CacheManager;
 import jadx.gui.plugins.context.CommonGuiPluginsContext;
+import jadx.gui.privacy.PrivacyReport;
 import jadx.gui.settings.data.ProjectData;
 import jadx.gui.settings.data.SaveOptionEnum;
 import jadx.gui.settings.data.TabViewState;
@@ -286,6 +287,15 @@ public class JadxProject {
 
 	public int getSearchResourcesSizeLimit() {
 		return data.getSearchResourcesSizeLimit();
+	}
+
+	public @Nullable PrivacyReport getPrivacyReport() {
+		return data.getPrivacyReport();
+	}
+
+	public void setPrivacyReport(@Nullable PrivacyReport report) {
+		data.setPrivacyReport(report);
+		changed();
 	}
 
 	private void changed() {

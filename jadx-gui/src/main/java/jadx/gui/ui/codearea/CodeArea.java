@@ -1,5 +1,6 @@
 package jadx.gui.ui.codearea;
 
+import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseAdapter;
@@ -10,6 +11,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.event.PopupMenuEvent;
 
@@ -30,6 +32,7 @@ import jadx.gui.JadxWrapper;
 import jadx.gui.jobs.IBackgroundTask;
 import jadx.gui.jobs.LoadTask;
 import jadx.gui.jobs.TaskWithExtraOnFinish;
+import jadx.gui.privacy.PrivacyRules;
 import jadx.gui.settings.JadxProject;
 import jadx.gui.treemodel.JClass;
 import jadx.gui.treemodel.JLoadableNode;
@@ -55,11 +58,13 @@ import jadx.gui.ui.codearea.sync.CodeAreaSyncee;
 import jadx.gui.ui.codearea.sync.CodeAreaSyncer;
 import jadx.gui.ui.codearea.sync.CodeAreaSyncerAbstractFactory;
 import jadx.gui.ui.codearea.sync.JavaSyncer;
+import jadx.gui.ui.dialog.PermissionUsagesDialog;
 import jadx.gui.ui.panel.ContentPanel;
 import jadx.gui.utils.CaretPositionFix;
 import jadx.gui.utils.DefaultPopupMenuListener;
 import jadx.gui.utils.JNodeCache;
 import jadx.gui.utils.JumpPosition;
+import jadx.gui.utils.NLS;
 import jadx.gui.utils.UiUtils;
 import jadx.gui.utils.shortcut.ShortcutsController;
 
@@ -74,6 +79,7 @@ public final class CodeArea extends AbstractCodeArea implements CodeAreaSyncerAb
 
 	private @Nullable ICodeInfo cachedCodeInfo;
 	private @Nullable MouseHoverHighlighter mouseHoverHighlighter;
+	private @Nullable PrivacyHighlighter privacyHighlighter;
 	private final ShortcutsController shortcutsController;
 
 	CodeArea(ContentPanel contentPanel, JNode node) {
@@ -88,6 +94,9 @@ public final class CodeArea extends AbstractCodeArea implements CodeAreaSyncerAb
 
 		if (node instanceof JResource && node.makeString().endsWith(".json")) {
 			addMenuForJsonFile();
+		}
+		if (isManifest()) {
+			addMenuForManifest();
 		}
 
 		setHyperlinksEnabled(true);
@@ -107,6 +116,27 @@ public final class CodeArea extends AbstractCodeArea implements CodeAreaSyncerAb
 		if (isJavaCode) {
 			mouseHoverHighlighter = new MouseHoverHighlighter(this, codeLinkGenerator);
 			addMouseMotionListener(mouseHoverHighlighter);
+		}
+		if (node instanceof JClass) {
+			privacyHighlighter = new PrivacyHighlighter(this, (JClass) node);
+			addMouseMotionListener(privacyHighlighter);
+			addMouseListener(privacyHighlighter);
+		}
+	}
+
+	@Override
+	public void setText(String text) {
+		super.setText(text);
+		if (privacyHighlighter != null) {
+			privacyHighlighter.update();
+		}
+	}
+
+	@Override
+	protected void paintComponent(Graphics g) {
+		super.paintComponent(g);
+		if (privacyHighlighter != null) {
+			privacyHighlighter.paintOverlay(g);
 		}
 	}
 
@@ -227,6 +257,61 @@ public final class CodeArea extends AbstractCodeArea implements CodeAreaSyncerAb
 		JNodePopupBuilder popup = new JNodePopupBuilder(this, getPopupMenu(), shortcutsController);
 		popup.addSeparator();
 		popup.add(new JsonPrettifyAction(this));
+	}
+
+	/**
+	 * 'Find permission usages' for the permission name under the mouse (also Ctrl+click on it)
+	 */
+	private void addMenuForManifest() {
+		JPopupMenu popupMenu = getPopupMenu();
+		JMenuItem item = new JMenuItem(NLS.str("permission_usages.menu"));
+		String[] permission = new String[1];
+		item.addActionListener(e -> showPermissionUsages(permission[0]));
+		popupMenu.addSeparator();
+		popupMenu.add(item);
+		popupMenu.addPopupMenuListener(new DefaultPopupMenuListener() {
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+				int offset = UiUtils.getOffsetAtMousePosition(CodeArea.this);
+				permission[0] = offset >= 0 ? getPermissionAtOffset(offset) : null;
+				item.setText(permission[0] == null
+						? NLS.str("permission_usages.menu")
+						: NLS.str("permission_usages.menu_for", PrivacyRules.shortPermission(permission[0])));
+			}
+		});
+	}
+
+	public boolean isManifest() {
+		return node instanceof JResource && node.makeString().equals("AndroidManifest.xml");
+	}
+
+	/**
+	 * @return permission name if the offset is inside a quoted permission name, like
+	 *         {@code <uses-permission android:name="android.permission.READ_SMS"/>}
+	 */
+	public @Nullable String getPermissionAtOffset(int offset) {
+		try {
+			int line = getLineOfOffset(offset);
+			int lineStart = getLineStartOffset(line);
+			String text = getText(lineStart, getLineEndOffset(line) - lineStart);
+			int pos = offset - lineStart;
+			int open = text.lastIndexOf('"', pos - 1);
+			int close = text.indexOf('"', pos);
+			if (open == -1 || close == -1 || open >= close) {
+				return null;
+			}
+			String str = text.substring(open + 1, close);
+			return PermissionUsagesDialog.isPermissionName(str) ? str : null;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	/**
+	 * @param permission permission to select, null to show all declared permissions
+	 */
+	public void showPermissionUsages(@Nullable String permission) {
+		new PermissionUsagesDialog(getMainWindow(), permission).setVisible(true);
 	}
 
 	/**

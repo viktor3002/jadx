@@ -45,6 +45,9 @@ public class CodeLinkGenerator implements LinkGenerator {
 	@Override
 	public LinkGeneratorResult isLinkAtOffset(RSyntaxTextArea textArea, int offset) {
 		try {
+			if (codeArea.isManifest()) {
+				return getPermissionLink(offset);
+			}
 			if (!codeArea.getCodeInfo().hasMetadata()) {
 				return null;
 			}
@@ -72,6 +75,28 @@ public class CodeLinkGenerator implements LinkGenerator {
 			LOG.error("isLinkAtOffset error", e);
 			return null;
 		}
+	}
+
+	/**
+	 * Permission names in AndroidManifest.xml open the permission usages window
+	 */
+	private @Nullable LinkGeneratorResult getPermissionLink(int offset) {
+		String permission = codeArea.getPermissionAtOffset(offset);
+		if (permission == null) {
+			return null;
+		}
+		return new LinkGeneratorResult() {
+			@Override
+			public HyperlinkEvent execute() {
+				codeArea.showPermissionUsages(permission);
+				return new HyperlinkEvent(codeArea, HyperlinkEvent.EventType.ACTIVATED, null, permission);
+			}
+
+			@Override
+			public int getSourceOffset() {
+				return offset;
+			}
+		};
 	}
 
 	@Nullable

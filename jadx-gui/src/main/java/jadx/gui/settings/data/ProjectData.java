@@ -11,6 +11,7 @@ import java.util.Objects;
 import org.jetbrains.annotations.Nullable;
 
 import jadx.api.data.impl.JadxCodeData;
+import jadx.gui.privacy.PrivacyReport;
 import jadx.gui.search.providers.ResourceFilter;
 
 public class ProjectData {
@@ -25,6 +26,7 @@ public class ProjectData {
 	private List<String> searchHistory = new ArrayList<>();
 	private String searchResourcesFilter = ResourceFilter.DEFAULT_STR;
 	private int searchResourcesSizeLimit = 0; // in MB
+	private @Nullable PrivacyReport privacyReport;
 
 	protected Map<String, String> pluginOptions = new HashMap<>();
 
@@ -123,5 +125,13 @@ public class ProjectData {
 
 	public Map<String, String> getPluginOptions() {
 		return pluginOptions;
+	}
+
+	public @Nullable PrivacyReport getPrivacyReport() {
+		return privacyReport;
+	}
+
+	public void setPrivacyReport(@Nullable PrivacyReport privacyReport) {
+		this.privacyReport = privacyReport;
 	}
 }

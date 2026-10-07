@@ -1,0 +1,53 @@
+name: Update Android permission database
+
+# Regenerate jadx-gui/src/main/resources/privacy/android-permissions.db from the latest
+# Android SDK platforms and AOSP release. A pull request is opened only if the content changed.
+on:
+  schedule:
+    - cron: '17 4 * * 1' # weekly, Monday 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # extracted SDK entries are cached by archive checksum, so unchanged platforms are not downloaded again
+      - name: Download cache
+        uses: actions/cache@v6
+        with:
+          path: jadx-permission-db/build/download-cache
+          key: permission-db-${{ github.run_id }}
+          restore-keys: permission-db-
+
+      - name: Generate database
+        id: generate
+        run: ./gradlew :jadx-permission-db:run --args="--changelog ${{ runner.temp }}/permission-db-changes.md"
+
+      - name: Test with the new database
+        if: steps.generate.outputs.changed == 'true'
+        run: ./gradlew :jadx-permission-db:test :jadx-gui:test --tests 'jadx.gui.privacy.*'
+
+      - name: Create pull request
+        if: steps.generate.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: auto/permission-db-update
+          add-paths: jadx-gui/src/main/resources/privacy/android-permissions.db
+          commit-message: 'chore(gui): update Android permission database'
+          title: 'chore(gui): update Android permission database'
+          body-path: ${{ runner.temp }}/permission-db-changes.md

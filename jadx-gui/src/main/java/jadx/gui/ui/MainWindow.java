@@ -151,6 +151,8 @@ import jadx.gui.ui.dialog.ApkHashesDialog;
 import jadx.gui.ui.dialog.CharsetDialog;
 import jadx.gui.ui.dialog.GotoAddressDialog;
 import jadx.gui.ui.dialog.LogViewerDialog;
+import jadx.gui.ui.dialog.PermissionUsagesDialog;
+import jadx.gui.ui.dialog.PrivacyOverviewDialog;
 import jadx.gui.ui.dialog.SearchDialog;
 import jadx.gui.ui.export.ExportProjectDialog;
 import jadx.gui.ui.filedialog.FileDialogWrapper;
@@ -1225,6 +1227,10 @@ public class MainWindow extends JFrame implements IMainWindow {
 		JadxGuiAction forwardVariantAction = new JadxGuiAction(ActionModel.FORWARD_V, navController::navForward);
 		JadxGuiAction quarkAction = new JadxGuiAction(ActionModel.QUARK,
 				() -> new QuarkDialog(MainWindow.this).setVisible(true));
+		JadxGuiAction privacyAction = new JadxGuiAction(ActionModel.PRIVACY_OVERVIEW,
+				() -> new PrivacyOverviewDialog(MainWindow.this).setVisible(true));
+		JadxGuiAction permissionUsagesAction = new JadxGuiAction(ActionModel.PERMISSION_USAGES,
+				() -> new PermissionUsagesDialog(MainWindow.this, null).setVisible(true));
 		JadxGuiAction debuggerAction = new JadxGuiAction(ActionModel.OPEN_DEVICE,
 				() -> new ADBDialog(MainWindow.this).setVisible(true));
 
@@ -1287,6 +1293,8 @@ public class MainWindow extends JFrame implements IMainWindow {
 		tools.add(resetCacheAction);
 		tools.add(deobfMenuItem);
 		tools.add(quarkAction);
+		tools.add(privacyAction);
+		tools.add(permissionUsagesAction);
 		tools.add(debuggerAction);
 		tools.addSeparator();
 		tools.add(new JadxGuiAction(ActionModel.APK_HASHES, () -> new ApkHashesDialog(this).setVisible(true)));
@@ -1398,6 +1406,8 @@ public class MainWindow extends JFrame implements IMainWindow {
 			decompileAllAction.setEnabled(loaded);
 			deobfAction.setEnabled(loaded);
 			quarkAction.setEnabled(loaded);
+			privacyAction.setEnabled(loaded);
+			permissionUsagesAction.setEnabled(loaded);
 			debuggerAction.setEnabled(loaded);
 			resetCacheAction.setEnabled(loaded);
 			return false;

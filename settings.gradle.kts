@@ -31,6 +31,7 @@ include("jadx-gui-api")
 include("jadx-gui")
 
 include("jadx-plugins-tools")
+include("jadx-permission-db")
 
 include("jadx-commons:jadx-app-commons")
 include("jadx-commons:jadx-zip")

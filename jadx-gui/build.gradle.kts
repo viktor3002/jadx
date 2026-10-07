@@ -32,6 +32,7 @@ dependencies {
 	implementation(libs.bundles.flatlaf)
 
 	implementation(libs.gson)
+	implementation(libs.sqlite.jdbc) // Android permission database (privacy)
 	implementation(libs.commons.lang3)
 	implementation(libs.commons.text)
 	implementation(libs.commons.io)
