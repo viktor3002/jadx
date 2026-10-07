@@ -51,6 +51,13 @@ class PrivacyAnalyzerTest {
 		assertThat(rules.getCapability("SCREEN_CAPTURE").getScore()).isEqualTo(2);
 		assertThat(rules.getCapability("LOCATION").getScore()).isEqualTo(1);
 		assertThat(rules.getCapability("REFLECTION").getFlag()).isEqualTo("REFL");
+		// abbreviations for crowded rows in the overview
+		for (PrivacyRules.Capability cap : rules.getCapabilities().values()) {
+			if (cap.isPrivacy()) {
+				assertThat(cap.getShortLabel()).as("short label of %s", cap.getId()).hasSizeLessThanOrEqualTo(8).isUpperCase();
+			}
+		}
+		assertThat(rules.getCapability("LOCATION").getShortLabel()).isEqualTo("LOC");
 	}
 
 	@Test

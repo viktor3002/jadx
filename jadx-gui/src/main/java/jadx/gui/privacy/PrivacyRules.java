@@ -18,6 +18,7 @@ import java.util.TreeSet;
 import org.jetbrains.annotations.Nullable;
 
 import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
 
 import jadx.core.utils.exceptions.JadxRuntimeException;
 import jadx.core.utils.files.FileUtils;
@@ -53,16 +54,19 @@ public final class PrivacyRules {
 	public static final class Capability {
 		private final String id;
 		private final String label;
+		private final String shortLabel;
 		private final int score;
 		private final Requires requires;
 		private final List<String> permissions;
 		private final @Nullable String flag;
 		private final boolean privacy;
 
-		Capability(String id, String label, int score, Requires requires, List<String> permissions, @Nullable String flag,
+		Capability(String id, String label, @Nullable String shortLabel, int score, Requires requires, List<String> permissions,
+				@Nullable String flag,
 				boolean privacy) {
 			this.id = id;
 			this.label = label;
+			this.shortLabel = shortLabel != null ? shortLabel : label;
 			this.score = score;
 			this.requires = requires;
 			this.permissions = permissions;
@@ -72,6 +76,13 @@ public final class PrivacyRules {
 
 		public String getId() {
 			return id;
+		}
+
+		/**
+		 * Abbreviation for crowded views (like LOC, A11Y)
+		 */
+		public String getShortLabel() {
+			return shortLabel;
 		}
 
 		public String getLabel() {
@@ -311,7 +322,7 @@ public final class PrivacyRules {
 		for (CapabilityJson c : json.capabilities) {
 			Requires requires = parseRequires(c.requires);
 			List<String> perms = c.permissions == null ? Collections.emptyList() : c.permissions;
-			caps.put(c.id, new Capability(c.id, c.label, c.score, requires, perms, c.flag, true));
+			caps.put(c.id, new Capability(c.id, c.label, c.shortLabel, c.score, requires, perms, c.flag, true));
 		}
 		List<Api> apis = new ArrayList<>(json.apis.size());
 		for (ApiJson a : json.apis) {
@@ -438,7 +449,8 @@ public final class PrivacyRules {
 				for (String perm : perms) {
 					labels.add(shortPermission(perm));
 				}
-				return new Capability(i, String.join(" | ", labels), 0, Requires.USES_PERMISSION, new ArrayList<>(perms), null, false);
+				String label = String.join(" | ", labels);
+				return new Capability(i, label, label, 0, Requires.USES_PERMISSION, new ArrayList<>(perms), null, false);
 			});
 		}
 	}
@@ -606,6 +618,8 @@ public final class PrivacyRules {
 	private static final class CapabilityJson {
 		String id;
 		String label;
+		@SerializedName("short")
+		String shortLabel;
 		int score;
 		String requires;
 		List<String> permissions;

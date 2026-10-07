@@ -54,6 +54,13 @@ Open it with **Tools → Privacy Impact Overview** (available when an app is loa
   - **Score**: privacy score, the table is sorted by it (highest first). The cell is color coded from white (score 0)
     to dark red (highest score among all rows of the current view; text filters don't change the colors)
   - **Permissions / capabilities**: privacy relevant capabilities used, e.g. `Screen capture (MediaProjection) ×2, Location ×1`;
+    high impact capabilities (score 2) are bold. With more than 3 capabilities, abbreviations are shown instead
+    (e.g. `SCREEN×2  A11Y  LOC  MIC×3`, `×N` omitted for 1; the row tooltip shows the full names with their abbreviations):
+    `A11Y` accessibility, `SCREEN` screen capture, `SECSET`/`SYSSET` secure/system settings, `ADMIN` device admin,
+    `NOTIF` notification listener, `IME` keyboard, `INSTALL` install packages, `OVERLAY`, `SMS` read SMS, `SMS-IN` intercept SMS,
+    `LOC` location, `CAM` camera, `MIC` microphone, `CONTACTS`, `CALLLOG`, `CAL` calendar, `PHONE` phone identifiers,
+    `CALL-OUT` outgoing calls, `SMS-OUT` send SMS, `MMS`, `ACCOUNTS`, `KEYGUARD`, `SIP`, `BROWSER`, `FILES` files and media,
+    `APPS` installed apps, `BT` bluetooth, `USAGE` app usage;
     `×N` is the number of distinct APIs used for that capability. Hover the row for the permission names and the list of APIs
   - **Type**: Service, Receiver, Receiver (dynamic) or Class
   - **Flags**: `DEX` (loads code at runtime), `REFL` (reflective calls), `MISSING` (class declared in manifest but not found in the code)
@@ -211,7 +218,7 @@ Very high impact capabilities score **2** per API, other privacy relevant capabi
 Example: a service whose `onStartCommand` calls a helper using `LocationManager.getLastKnownLocation` (1)
 and starts a `Runnable` which calls `MediaProjectionManager.createScreenCaptureIntent` (2) has a score of 3.
 
-To add or change APIs, edit `privacy-rules.json`: `capabilities` define label, score, the permissions and
+To add or change APIs, edit `privacy-rules.json`: `capabilities` define label, abbreviation (`short`), score, the permissions and
 what has to be declared (`requires`: `uses-permission`, `component-permission` or `none`);
 `apis` map a `method` (`pkg.Class.method`, `$` for inner classes, `*` for any method), `field` or `string` (prefix) to a capability;
 `manifest` maps component permissions and intent actions to capabilities.

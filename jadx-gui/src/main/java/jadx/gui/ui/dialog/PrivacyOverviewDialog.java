@@ -48,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jadx.api.JavaNode;
+import jadx.api.metadata.ICodeNodeRef;
 import jadx.core.dex.nodes.ClassNode;
 import jadx.core.dex.nodes.MethodNode;
 import jadx.core.dex.nodes.RootNode;
@@ -80,6 +81,8 @@ public class PrivacyOverviewDialog extends CommonDialog {
 	private static final Logger LOG = LoggerFactory.getLogger(PrivacyOverviewDialog.class);
 
 	private static final int MAX_CALL_SITES = 20;
+	/** with more capabilities, abbreviations are shown */
+	private static final int MAX_FULL_LABELS = 3;
 	private static final String[] LIBRARY_PREFIXES = {
 			"android.", "androidx.", "com.google.", "kotlin.", "kotlinx.", "j$.", "okhttp3.", "okio.",
 			"retrofit2.", "com.squareup.", "io.reactivex.", "org.jetbrains.", "com.facebook.", "org.intellij.",
@@ -183,7 +186,7 @@ public class PrivacyOverviewDialog extends CommonDialog {
 				if (e.getClickCount() == 2) {
 					ViewRow row = getSelectedRow();
 					if (row != null && row.cls != null) {
-						jumpTo(row.cls.getJavaNode());
+						jumpTo(row.cls);
 					}
 				}
 			}
@@ -198,7 +201,7 @@ public class PrivacyOverviewDialog extends CommonDialog {
 					if (path != null) {
 						Object obj = ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
 						if (obj instanceof MethodRef) {
-							jumpTo(((MethodRef) obj).mth.getJavaNode());
+							jumpTo(((MethodRef) obj).mth);
 						}
 					}
 				}
@@ -306,7 +309,7 @@ public class PrivacyOverviewDialog extends CommonDialog {
 			}
 			if (!filter.isEmpty()
 					&& !viewRow.name.toLowerCase(Locale.ROOT).contains(filter)
-					&& !viewRow.permissions.toLowerCase(Locale.ROOT).contains(filter)) {
+					&& !viewRow.filterText.contains(filter)) {
 				continue;
 			}
 			rows.add(viewRow);
@@ -432,12 +435,22 @@ public class PrivacyOverviewDialog extends CommonDialog {
 		});
 	}
 
-	private void jumpTo(@Nullable JavaNode javaNode) {
-		jumpTo(mainWindow, javaNode);
+	private void jumpTo(@Nullable ICodeNodeRef nodeRef) {
+		jumpTo(mainWindow, nodeRef);
 	}
 
-	static void jumpTo(MainWindow mainWindow, @Nullable JavaNode javaNode) {
+	/**
+	 * Open class or method in the code view.
+	 * Java nodes of methods are created lazily (when the class was loaded), so resolve them with the
+	 * decompiler instead of {@code MethodNode.getJavaNode()}.
+	 */
+	static void jumpTo(MainWindow mainWindow, @Nullable ICodeNodeRef nodeRef) {
+		if (nodeRef == null) {
+			return;
+		}
+		JavaNode javaNode = mainWindow.getWrapper().getDecompiler().getJavaNodeByRef(nodeRef);
 		if (javaNode == null) {
+			LOG.warn("Failed to resolve node: {}", nodeRef);
 			return;
 		}
 		try {
@@ -473,7 +486,10 @@ public class PrivacyOverviewDialog extends CommonDialog {
 		private final @Nullable ClassNode cls;
 		private final String name;
 		private final int score;
-		private final String permissions;
+		/** shown in the table: bold for high impact capabilities */
+		private final String permissionsHtml;
+		/** full names and abbreviations, lower case */
+		private final String filterText;
 		private final String kind;
 		private final String flags;
 		private final String tooltip;
@@ -498,13 +514,16 @@ public class PrivacyOverviewDialog extends CommonDialog {
 			}
 			List<Capability> caps = new ArrayList<>(groups.keySet());
 			caps.sort(Comparator.comparingInt(Capability::getScore).reversed().thenComparing(Capability::getLabel));
-			StringBuilder perms = new StringBuilder();
 			Set<String> flagSet = new TreeSet<>();
+			List<Capability> shown = new ArrayList<>();
 			StringBuilder tip = new StringBuilder("<html>");
 			for (Capability cap : caps) {
 				List<String> keys = groups.get(cap);
 				byCapability.put(cap, keys);
 				tip.append("<b>").append(UiUtils.escapeHtml(cap.getLabel())).append("</b>");
+				if (!cap.getShortLabel().equals(cap.getLabel())) {
+					tip.append(" (").append(UiUtils.escapeHtml(cap.getShortLabel())).append(')');
+				}
 				if (!cap.getPermissions().isEmpty()) {
 					tip.append(" &nbsp;").append(UiUtils.escapeHtml(String.join(", ", cap.getPermissions())));
 				}
@@ -514,17 +533,37 @@ public class PrivacyOverviewDialog extends CommonDialog {
 				}
 				if (cap.getFlag() != null) {
 					flagSet.add(cap.getFlag());
-					continue;
+				} else {
+					shown.add(cap);
 				}
-				if (perms.length() > 0) {
-					perms.append(", ");
-				}
-				perms.append(cap.getLabel()).append(" ×").append(keys.size());
 			}
 			if (row.isMissing()) {
 				flagSet.add(NLS.str("privacy.flag_missing"));
 			}
-			this.permissions = perms.toString();
+			// more than MAX_FULL_LABELS capabilities: abbreviations, full names in the tooltip
+			boolean abbreviate = shown.size() > MAX_FULL_LABELS;
+			StringBuilder text = new StringBuilder();
+			StringBuilder html = new StringBuilder("<html>");
+			for (Capability cap : shown) {
+				int count = groups.get(cap).size();
+				String label = abbreviate ? cap.getShortLabel() : cap.getLabel();
+				String entry = abbreviate && count == 1 ? label : label + " ×" + count;
+				String sep = abbreviate ? "  " : ", ";
+				if (text.length() > 0) {
+					text.append(sep);
+					html.append(sep.replace(" ", "&nbsp;"));
+				}
+				text.append(entry);
+				// high impact capabilities in bold
+				boolean bold = cap.getScore() >= 2;
+				html.append(bold ? "<b>" : "").append(UiUtils.escapeHtml(entry)).append(bold ? "</b>" : "");
+			}
+			this.permissionsHtml = shown.isEmpty() ? "" : html.append("</html>").toString();
+			StringBuilder filterText = new StringBuilder(text);
+			for (Capability cap : shown) {
+				filterText.append(' ').append(cap.getLabel()).append(' ').append(cap.getShortLabel());
+			}
+			this.filterText = filterText.toString().toLowerCase(Locale.ROOT);
 			this.flags = String.join(" ", flagSet);
 			this.tooltip = caps.isEmpty() ? null : tip.append("</html>").toString();
 			this.kind = kindName(row.getKind());
@@ -636,7 +675,7 @@ public class PrivacyOverviewDialog extends CommonDialog {
 				case 1:
 					return row.score;
 				case 2:
-					return row.permissions;
+					return row.permissionsHtml;
 				case 3:
 					return row.kind;
 				default:

@@ -35,7 +35,7 @@ import javax.swing.tree.TreePath;
 
 import org.jetbrains.annotations.Nullable;
 
-import jadx.api.JavaNode;
+import jadx.api.metadata.ICodeNodeRef;
 import jadx.core.dex.nodes.ClassNode;
 import jadx.core.dex.nodes.MethodNode;
 import jadx.gui.JadxWrapper;
@@ -132,7 +132,7 @@ public class PermissionUsagesDialog extends CommonDialog {
 					if (path != null) {
 						Object obj = ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
 						if (obj instanceof NodeRef) {
-							PrivacyOverviewDialog.jumpTo(mainWindow, ((NodeRef) obj).getJavaNode());
+							PrivacyOverviewDialog.jumpTo(mainWindow, ((NodeRef) obj).getNodeRef());
 						}
 					}
 				}
@@ -334,11 +334,11 @@ public class PermissionUsagesDialog extends CommonDialog {
 		}
 
 		@Nullable
-		JavaNode getJavaNode() {
+		ICodeNodeRef getNodeRef() {
 			if (mth != null) {
-				return mth.getJavaNode();
+				return mth;
 			}
-			return cls == null ? null : cls.getJavaNode();
+			return cls;
 		}
 
 		@Override
